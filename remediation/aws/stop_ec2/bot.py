@@ -3,7 +3,7 @@ import sonrai.platform.aws.arn
 
 def run(ctx):
 
-    ec2_client = ctx.get_client().get('ec2', region_name='us-east-1')
+    ec2_client = ctx.get_client().get('ec2', 'us-east-1')
 
     # Get role name
     resource_arn = sonrai.platform.aws.arn.parse(ctx.resource_id)
