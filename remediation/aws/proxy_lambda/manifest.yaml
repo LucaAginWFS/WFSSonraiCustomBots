@@ -1,0 +1,7 @@
+version: 2020-07-10
+type: Remediation
+title: Proxy to Lambda
+cloud: AWS
+operation: EXECUTE_PYTHON_SCRIPT
+authorName: World Fuel Services - Cloud Security Team
+authorEmail: blackops@wfscorp.com
