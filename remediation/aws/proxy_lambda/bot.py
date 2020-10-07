@@ -10,6 +10,7 @@ def run(ctx):
     # payload['srn'] = ctx.srn
     # payload['severityNumberic'] = ctx.severityNumberic
     payload['resource_id'] = ctx.resource_id
+    payload['data_2'] = ctx.config.get('data')
     # payload['resourceLabel'] = ctx.resourceLabel
     # payload['resourceSRN'] = ctx.resourceSRN
     # payload['ticketType'] = ctx.ticketType
@@ -18,7 +19,7 @@ def run(ctx):
     # payload['criticalResourceID'] = ctx.criticalResourceID
     # payload['severityCategory'] = ctx.severityCategory
     # payload['status'] = ctx.status
-    payload['data'] = ctx.get_policy_evidence()
+    payload['policy_evidence'] = ctx.get_policy_evidence()
     # payload['createdBy'] = ctx.createdBy
     # payload['orgName'] = ctx.orgName
 
