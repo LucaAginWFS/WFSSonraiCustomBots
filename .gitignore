@@ -1,4 +1,9 @@
-.DS_Store
+.DS_Store 
+*.log 
+*.retry 
+*.zip 
+packaged-template.yaml
+*/node_modules
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
