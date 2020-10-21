@@ -12,7 +12,7 @@ def run(ctx):
     payload['policy_evidence'] = ctx.get_policy_evidence()
 
     lambda_client.invoke(
-        FunctionName='arn:aws:lambda:us-east-1:174388760268:function:SonraiRemediationBotProxy',
+        FunctionName='arn:aws:lambda:us-east-1:174388760268:function:sonrai-remediation-bot-proxy',
         InvocationType='Event',
         Payload=json.dumps(payload)
     )
