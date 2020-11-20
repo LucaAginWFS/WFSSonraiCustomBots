@@ -4,6 +4,14 @@
 *.zip 
 packaged-template.yaml
 */node_modules
+package-lock.json
+
+.DS_Store 
+*.log 
+*.retry 
+*.zip 
+packaged-template.yaml
+*/node_modules
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

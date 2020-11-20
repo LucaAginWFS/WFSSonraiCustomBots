@@ -1,0 +1,206 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Creates pipeline to deploy remediation IAM roles needed by Cloud Security Auto Remediations
+Parameters:
+  PipelineArtifactsBucketName: 
+    Description: The name of the S3 bucket where artifacts for the pipeline are stored
+    Type: String
+    Default: wfs-sonrai-bot-roles-pipeline-artifacts
+  PipelineName:
+    Description: The name of the CodePipeline 
+    Type: String
+    Default: wfs-sonrai-bot-roles-pipeline
+  RepositoryName:
+    Description: The name of the CodeCommit repo 
+    Type: String
+    Default: sonrai-custom-bots
+  DefaultBranch:
+    Description: The branch 
+    Type: String
+    Default: master
+  DeploymentStackSetName:
+    Description: The name of the cfn stackset being deployed
+    Type: String
+    Default: cloud-sec-sonrai-bot-roles
+  DeploymentTemplateName:
+    Description: The name of the template being used to deploy the cfn stack
+    Type: String
+    Default: sonrai-bot-roles.yaml
+  DeploymentTargetOUS:
+    Description: A list of AWS Organizations OUS ids targeted 
+    Type: String
+    Default: '"ou-9qaw-8cxocgs4"'
+  DeploymentStackInstancesRegions:
+    Description: A list of deployment regions targeted 
+    Type: String
+    Default: '"us-east-1"'
+  CrossAccountRole:
+    Description: Name of the Cross Account Role that will be assumed to deploy the stackset on Root Account
+    Type: String
+    Default: BOSCrossAccountRole
+  DeleteStack:
+    Description: Do you want to delete the stack? (yes/no)
+    Type: String
+    Default: "no"
+    AllowedValues: ["yes", "no"]
+
+Conditions:
+  DeleteStackCondition: !Equals [ !Ref DeleteStack, "yes" ] #TODO
+
+Resources:
+  PipelineBucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Ref PipelineArtifactsBucketName
+  DeleteS3ObjectsCustomResource: 
+    Type: "Custom::S3BucketDeleteObjects"
+    Properties: 
+      ServiceToken:
+        !ImportValue DeleteS3ObjectsLambdaArn
+      S3Bucket: !Ref PipelineArtifactsBucketName
+    DependsOn: PipelineBucket
+  CodePipelineServiceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument: 
+        Version: 2012-10-17
+        Statement:
+          - Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal: 
+              Service: 
+                - codepipeline.amazonaws.com
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-CodePipelineServiceRolePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                  - 's3:GetBucketPolicy'
+                  - 's3:GetObject'
+                  - 's3:ListBucket'
+                Resource: 
+                  - !GetAtt PipelineBucket.Arn
+                  - !Sub
+                    - '${bucketArn}/*'
+                    - bucketArn: !GetAtt PipelineBucket.Arn
+              - Effect: Allow
+                Action: 
+                  - 'codebuild:*'
+                  - 'codecommit:*'
+                  - 'lambda:InvokeFunction'
+                  - 'cloudformation:DescribeStacks'
+                  - 'iam:PassRole'
+                  - 'cloudformation:CreateStack'
+                  - 'kms:*'
+                  - 'sts:AssumeRole'
+                Resource: '*'
+  CodeBuildRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument: 
+        Version: 2012-10-17
+        Statement:
+          - Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal: 
+              Service: 
+                - codebuild.amazonaws.com
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-CodeBuildPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                - 's3:PutObject'
+                - 's3:GetObject'
+                - 's3:GetObjectVersion'
+                - 's3:ListBucket'
+                Resource: 
+                  - !GetAtt PipelineBucket.Arn
+                  - !Sub
+                    - '${bucketArn}/*'
+                    - bucketArn: !GetAtt PipelineBucket.Arn
+              - Effect: Allow
+                Resource: '*'
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'kms:*'
+  CodeBuild:
+    Type: "AWS::CodeBuild::Project"
+    Properties:
+      Source: 
+        Type: CODEPIPELINE
+      Artifacts: 
+        Type: CODEPIPELINE
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Environment: 
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:4.0
+        Type: LINUX_CONTAINER
+      TimeoutInMinutes: 15
+      Cache:
+        Location: LOCAL
+        Modes: 
+          - LOCAL_SOURCE_CACHE
+          - LOCAL_DOCKER_LAYER_CACHE
+        Type: LOCAL
+  Pipeline:
+    Type: "AWS::CodePipeline::Pipeline"
+    Properties:
+      Name: !Ref PipelineName
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref PipelineBucket
+      Stages: 
+        - Name: SourceCodeCheckout
+          Actions:
+            - Name: SourceCodeCheckout
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: '1'
+              RunOrder: 1
+              OutputArtifacts:
+                - Name: SourceArtifact
+              Configuration:
+                RepositoryName: !Ref RepositoryName
+                BranchName: !Ref DefaultBranch
+                PollForSourceChanges: 'true'
+        - Name: Build
+          Actions:
+            - Name: CodeBuild
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              RunOrder: 1
+              Configuration:
+                ProjectName: !Ref CodeBuild 
+              InputArtifacts:
+                - Name: SourceArtifact
+              OutputArtifacts:
+                - Name: BuildArtifact
+        - Name: DeployToAccounts
+          Actions:
+            - Name: DeployToOrg 
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: '1'
+              RunOrder: 1
+              Configuration:
+                FunctionName: !ImportValue OrganizationDeploymentLambda
+                UserParameters: !Sub '{"stack_set_name":"${DeploymentStackSetName}","deployment_target_ous":[${DeploymentTargetOUS}],"cft_name":"${DeploymentTemplateName}","deployment_stack_instances_regions":[${DeploymentStackInstancesRegions}],"cross_account_role":"${CrossAccountRole}"}'
+              InputArtifacts:
+                - Name: BuildArtifact
+        

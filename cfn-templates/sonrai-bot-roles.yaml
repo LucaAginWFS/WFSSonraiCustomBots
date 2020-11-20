@@ -1,0 +1,39 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Creates an IAM role for Sonrai Bots to use to perform remediations
+Parameters:
+  RoleName:
+    Description: Name of the remediation role
+    Type: String
+    Default: CloudSecSonraiBot
+Resources:
+  SonraiRemediationBotRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Ref RoleName
+      Description: Used by Sonrai bots to run remediation
+      AssumeRolePolicyDocument: 
+        Version: 2012-10-17
+        Statement:
+          - Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal: 
+              AWS: '174388760268'
+      Policies:
+          - PolicyName: !Sub ${RoleName}-policy
+            PolicyDocument: |
+              {
+                  "Version": "2012-10-17",
+                  "Statement": [
+                      {
+                          "Effect": "Allow",
+                          "Action": [
+                              "lambda:InvokeFunction"
+                          ],
+                          "Resource": [
+                              "arn:aws:lambda:us-east-1:174388760268:function:sonrai-remediation-bot-proxy"
+                          ]
+                      }
+                  ]
+              }
+        
