@@ -5,7 +5,7 @@ Parameters:
   RoleName:
     Description: Name of the remediation role
     Type: String
-    Default: CloudSecSonraiBot
+    Default: sonrai-CloudSecSonraiBot
 Resources:
   SonraiRemediationBotRole:
     Type: "AWS::IAM::Role"
