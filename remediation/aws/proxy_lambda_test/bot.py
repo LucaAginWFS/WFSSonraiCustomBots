@@ -17,12 +17,18 @@ def run(ctx):
     ticket_srn = ticket.get("srn")
     query = '''
         mutation snoozeTicket($srn: String, $snoozedUntil: DateTime) {
+            ReopenTickets(input: {srns: [$srn]}) {
+                successCount
+                failureCount
+                __typename
+            }
             SnoozeTickets(input: {srns: [$srn]}, snoozedUntil: $snoozedUntil) {
-            successCount
-            failureCount
-            __typename
+                successCount
+                failureCount
+                __typename
             }
         }
+        
     '''
     ticket_snoozeUntil = (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d")
     variables = { "srn": ticket_srn, "snoozedUntil": ticket_snoozeUntil }
