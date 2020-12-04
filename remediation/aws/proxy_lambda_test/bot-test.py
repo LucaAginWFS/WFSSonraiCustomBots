@@ -14,7 +14,7 @@ dictionary = {}
 
 dictionary['test'] = 'test'
 
-print((datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d"))
+print(datetime.now() + timedelta(days=14))
 
 resourceId = 'arn:aws:ec2:us-east-1:034135693578:instance/i-0ea92f62101214836'
 parsesRes = arnparse(resourceId)
